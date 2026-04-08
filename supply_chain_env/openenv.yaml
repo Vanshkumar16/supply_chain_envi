@@ -1,0 +1,139 @@
+# openenv.yaml — Supply Chain Disruption Management Environment
+# Validated by: openenv validate
+
+name: supply_chain_env
+version: "1.0.0"
+description: >
+  A multi-node supply chain disruption management environment for RL post-training.
+  An AI agent controls reorder quantities, shipping lane weights, and supplier
+  activation levels to maintain service levels and minimise costs under stochastic
+  disruptions (supplier failures, lane congestion, cascading events).
+
+author: "OpenEnv Hackathon Submission"
+license: "BSD-3-Clause"
+tags:
+  - openenv
+  - supply-chain
+  - logistics
+  - reinforcement-learning
+  - continuous-action
+  - real-world
+
+# ── OpenEnv Interface ──────────────────────────────────────────────────────
+interface:
+  reset_endpoint:  "/reset"
+  step_endpoint:   "/step"
+  state_endpoint:  "/state"
+  websocket:       "/ws"
+  health:          "/"
+
+# ── Action Space ──────────────────────────────────────────────────────────
+action_space:
+  type: continuous
+  description: >
+    Three Dict[str, float] vectors, all values in [0.0, 1.0].
+  fields:
+    reorder_quantities:
+      type: "Dict[str, float]"
+      keys: ["S1", "S2"]
+      range: [0.0, 1.0]
+      description: "Fraction of max reorder capacity to order from each supplier"
+    rerouting_weights:
+      type: "Dict[str, float]"
+      keys: ["S1->W1", "S2->W1", "W1->R1", "W1->R2"]
+      range: [0.0, 1.0]
+      description: "Relative weight for each shipping lane (normalised per source)"
+    supplier_activation:
+      type: "Dict[str, float]"
+      keys: ["S1", "S2"]
+      range: [0.0, 1.0]
+      description: "Activation level for each supplier (0=suspend, 1=fully active)"
+
+# ── Observation Space ─────────────────────────────────────────────────────
+observation_space:
+  nodes:
+    type: "List[NodeStatus]"
+    count: 5
+    fields:
+      inventory_level:     {type: float, range: [0,1]}
+      demand_forecast:     {type: float, range: [0,1]}
+      disruption_active:   {type: bool}
+      disruption_severity: {type: float, range: [0,1]}
+      backlog:             {type: float, range: [0,1]}
+  suppliers:
+    type: "List[SupplierStatus]"
+    count: 2
+    fields:
+      reliability: {type: float, range: [0,1]}
+      lead_time:   {type: float, range: [0,1]}
+      active:      {type: bool}
+  lanes:
+    type: "List[LaneStatus]"
+    count: 4
+    fields:
+      capacity_used: {type: float, range: [0,1]}
+      congestion:    {type: float, range: [0,1]}
+      disrupted:     {type: bool}
+  globals:
+    service_level:      {type: float, range: [0,1], description: "Demand fulfilled this step"}
+    total_cost:         {type: float, range: [0,1], description: "Normalised step cost"}
+    disruption_count:   {type: int,   description: "Active disruptions in network"}
+    network_resilience: {type: float, range: [0,1], description: "Composite resilience score"}
+
+# ── Tasks ─────────────────────────────────────────────────────────────────
+tasks:
+  - id: task_0
+    difficulty: easy
+    max_steps: 10
+    description: >
+      Keep service_level >= 0.80 for 10 steps with no disruptions.
+      Tests basic reorder and routing decisions.
+    target_service_level: 0.80
+    max_cost: 1.0   # no cost constraint
+    grader: deterministic
+    score_range: [0.0, 1.0]
+    expected_baseline_score: 0.55
+
+  - id: task_1
+    difficulty: medium
+    max_steps: 20
+    description: >
+      Keep service_level >= 0.75 for 20 steps.
+      Supplier S1 is disrupted at step 5 (severity 0.7).
+      Agent must switch to S2 and buffer via warehouse.
+    target_service_level: 0.75
+    max_cost: 1.0
+    grader: deterministic
+    score_range: [0.0, 1.0]
+    expected_baseline_score: 0.40
+
+  - id: task_2
+    difficulty: hard
+    max_steps: 30
+    description: >
+      Keep service_level >= 0.70 AND cost <= 0.40 for 30 steps.
+      Cascading disruptions: S2 fails at step 5, lane W1->R1 congested at step 15.
+      Requires multi-objective optimisation under cascading failure.
+    target_service_level: 0.70
+    max_cost: 0.40
+    grader: deterministic
+    score_range: [0.0, 1.0]
+    expected_baseline_score: 0.25
+
+# ── Reward ────────────────────────────────────────────────────────────────
+reward:
+  type: shaped
+  range: [-1.5, 2.3]
+  description: >
+    Step reward = +service_level*2.0 - cost*0.5 - disruption_load*0.3
+                  - backlog*0.5 + resilience_bonus*0.3
+    Provides dense partial-progress signal at every step.
+    Penalises infinite-loop / destructive actions (all-zero reorder collapses SL).
+
+# ── Deployment ────────────────────────────────────────────────────────────
+deployment:
+  framework: fastapi
+  port: 8000
+  dockerfile: Dockerfile
+  platform: huggingface-spaces
+  sdk: docker

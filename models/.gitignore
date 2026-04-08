@@ -1,0 +1,5 @@
+# Model cache (don't commit)
+.cache/
+*.safetensors
+*.bin
+**/huggingface_hub/
