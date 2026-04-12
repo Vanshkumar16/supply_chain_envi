@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Supply Chain Environment Dashboard</title>
+  <link rel="stylesheet" href="/static/assets/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="/static/assets/chart-config.js"></script>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div>
+        <div class="header-title">⚙️ Supply Chain Env</div>
+        <div class="header-subtitle">OpenEnv-Compliant RL Environment</div>
+      </div>
+      <div class="header-controls">
+        <div class="control-group">
+          <label class="control-label">Task</label>
+          <select id="taskSelect">
+            <option value="task_0">Task 0 - Easy (10 steps)</option>
+            <option value="task_1">Task 1 - Medium (20 steps)</option>
+            <option value="task_2">Task 2 - Hard (30 steps)</option>
+          </select>
+        </div>
+        <button class="btn-primary" onclick="resetEpisode()">Reset</button>
+        <button class="btn-primary" onclick="stepEnvironment()" id="stepBtn">Step</button>
+        <button class="btn-secondary btn-small" onclick="gradeEpisode()">Grade</button>
+        <div class="status-indicator">
+          <div class="status-dot" id="statusDot"></div>
+          <span id="statusText">Ready</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <!-- Center Panel -->
+      <div class="center-panel">
+        <!-- Network Section -->
+        <div class="network-section">
+          <div class="network-title">📡 Supply Chain Network</div>
+          <canvas id="networkCanvas"></canvas>
+        </div>
+
+        <!-- Metrics Section -->
+        <div class="metrics-section">
+          <div class="metric-card">
+            <div class="metric-label">Service Level</div>
+            <div class="metric-value" id="serviceLevelValue">0.00</div>
+            <div class="metric-unit">target: <span id="serviceLevelTarget">0.80</span></div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Total Cost</div>
+            <div class="metric-value" id="costValue">0.00</div>
+            <div class="metric-unit">normalized</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Network Resilience</div>
+            <div class="metric-value" id="resilienceValue">0.00</div>
+            <div class="metric-unit">composite score</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Episode Score</div>
+            <div class="metric-value" id="scoreValue">-</div>
+            <div class="metric-unit">graded</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Sidebar - Control Panel -->
+      <div class="sidebar">
+        <!-- Reorder Quantities -->
+        <div class="sidebar-section">
+          <div class="sidebar-title">📦 Reorder Quantities</div>
+          <div class="control-group">
+            <div class="control-label">Supplier 1 (S1): <span id="s1Value">0.70</span></div>
+            <input type="range" id="s1Slider" min="0" max="1" step="0.05" value="0.7"
+              style="--value: 70%;" onchange="updateReorderValue('s1')">
+          </div>
+          <div class="control-group">
+            <div class="control-label">Supplier 2 (S2): <span id="s2Value">0.70</span></div>
+            <input type="range" id="s2Slider" min="0" max="1" step="0.05" value="0.7"
+              style="--value: 70%;" onchange="updateReorderValue('s2')">
+          </div>
+        </div>
+
+        <!-- Supplier Activation -->
+        <div class="sidebar-section">
+          <div class="sidebar-title">⚡ Supplier Activation</div>
+          <div class="control-group">
+            <label>
+              <input type="checkbox" id="s1Active" checked onchange="updateSupplierActivation()">
+              S1 Active
+            </label>
+          </div>
+          <div class="control-group">
+            <label>
+              <input type="checkbox" id="s2Active" checked onchange="updateSupplierActivation()">
+              S2 Active
+            </label>
+          </div>
+        </div>
+
+        <!-- Rerouting Weights -->
+        <div class="sidebar-section">
+          <div class="sidebar-title">🔀 Rerouting Weights</div>
+          <div class="control-group">
+            <div class="control-label">S1→W1: <span id="s1w1Value">0.50</span></div>
+            <input type="range" id="s1w1Slider" min="0" max="1" step="0.05" value="0.5"
+              style="--value: 50%;" onchange="updateRerouting()">
+          </div>
+          <div class="control-group">
+            <div class="control-label">S2→W1: <span id="s2w1Value">0.50</span></div>
+            <input type="range" id="s2w1Slider" min="0" max="1" step="0.05" value="0.5"
+              style="--value: 50%;" onchange="updateRerouting()">
+          </div>
+          <div class="control-group">
+            <div class="control-label">W1→R1: <span id="w1r1Value">0.50</span></div>
+            <input type="range" id="w1r1Slider" min="0" max="1" step="0.05" value="0.5"
+              style="--value: 50%;" onchange="updateRerouting()">
+          </div>
+          <div class="control-group">
+            <div class="control-label">W1→R2: <span id="w1r2Value">0.50</span></div>
+            <input type="range" id="w1r2Slider" min="0" max="1" step="0.05" value="0.5"
+              style="--value: 50%;" onchange="updateRerouting()">
+          </div>
+        </div>
+
+        <!-- Preset Actions -->
+        <div class="sidebar-section">
+          <div class="sidebar-title">🎯 Preset Actions</div>
+          <div class="button-group">
+            <button class="btn-preset" onclick="applyPreset('fair')">Fair Distribution</button>
+            <button class="btn-preset" onclick="applyPreset('r1')">Prioritize R1</button>
+            <button class="btn-preset" onclick="applyPreset('r2')">Prioritize R2</button>
+            <button class="btn-preset" onclick="applyPreset('emergency')">Emergency Mode</button>
+          </div>
+        </div>
+
+        <!-- Episode Info -->
+        <div class="sidebar-section">
+          <div class="sidebar-title">ℹ️ Episode Info</div>
+          <div class="episode-info">
+            <div class="episode-info-row">
+              <span class="episode-label">Episode:</span>
+              <span class="episode-value" id="episodeId">-</span>
+            </div>
+            <div class="episode-info-row">
+              <span class="episode-label">Difficulty:</span>
+              <span class="episode-value" id="difficulty">-</span>
+            </div>
+            <div class="episode-info-row">
+              <span class="episode-label">Progress:</span>
+              <span class="episode-value" id="progress">0/0</span>
+            </div>
+            <div class="episode-info-row">
+              <span class="episode-label">Reward:</span>
+              <span class="episode-value" id="reward">0.00</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts Section (below main content in scrollable area) -->
+  <div style="display: none; position: fixed; bottom: 0; right: 300px; width: calc(100% - 300px - 48px); height: 400px; background: var(--color-bg-card); border-top: 1px solid var(--color-border); padding: 20px; overflow-y: auto;" id="chartsContainer">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+      <div style="height: 200px;">
+        <div style="font-size: 12px; color: var(--color-text-secondary); margin-bottom: 10px; text-transform: uppercase;">Service Level Trend</div>
+        <canvas id="serviceLevelChart"></canvas>
+      </div>
+      <div style="height: 200px;">
+        <div style="font-size: 12px; color: var(--color-text-secondary); margin-bottom: 10px; text-transform: uppercase;">Cost Trend</div>
+        <canvas id="costChart"></canvas>
+      </div>
+      <div style="height: 200px;">
+        <div style="font-size: 12px; color: var(--color-text-secondary); margin-bottom: 10px; text-transform: uppercase;">Disruptions</div>
+        <canvas id="disruptionChart"></canvas>
+      </div>
+      <div style="height: 200px;">
+        <div style="font-size: 12px; color: var(--color-text-secondary); margin-bottom: 10px; text-transform: uppercase;">Cumulative Reward</div>
+        <canvas id="rewardChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===================================================================
+    // Global State
+    // ===================================================================
+    let currentState = null;
+    let currentObservation = null;
+    let cumulativeReward = 0;
+    let isEpisodeDone = false;
+    let targetServiceLevel = 0.80;
+
+    // ===================================================================
+    // API Functions
+    // ===================================================================
+    async function apiCall(endpoint, method = 'GET', body = null) {
+      try {
+        const opts = {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+        };
+        if (body) opts.body = JSON.stringify(body);
+
+        const response = await fetch(endpoint, opts);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        return await response.json();
+      } catch (error) {
+        showToast(`API Error: ${error.message}`, 'error');
+        return null;
+      }
+    }
+
+    async function resetEpisode() {
+      const taskId = document.getElementById('taskSelect').value;
+      setStatus('Resetting...', true);
+
+      const data = await apiCall('/reset', 'POST', { task_id: taskId, seed: 42 });
+      if (!data) {
+        setStatus('Ready', false);
+        return;
+      }
+
+      currentObservation = data;
+      cumulativeReward = 0;
+      isEpisodeDone = false;
+
+      const state = await apiCall('/state');
+      if (!state) {
+        setStatus('Ready', false);
+        return;
+      }
+      currentState = state;
+      targetServiceLevel = state.task_description?.match(/\d\.\d+/)?.[0] || 0.80;
+
+      dashboardCharts.clearAll();
+      updateUI();
+      setStatus('Ready', false);
+      document.getElementById('stepBtn').disabled = false;
+
+      showToast(`Episode reset: ${taskId}`, 'success');
+    }
+
+    async function stepEnvironment() {
+      if (!currentObservation) {
+        showToast('Please reset first', 'error');
+        return;
+      }
+
+      if (isEpisodeDone) {
+        showToast('Episode finished. Reset to continue.', 'error');
+        return;
+      }
+
+      const action = buildAction();
+      setStatus('Stepping...', true);
+
+      const result = await apiCall('/step', 'POST', action);
+      if (!result) {
+        setStatus('Ready', false);
+        return;
+      }
+
+      currentObservation = result.observation;
+      cumulativeReward += result.reward;
+      isEpisodeDone = result.done;
+
+      const state = await apiCall('/state');
+      if (state) currentState = state;
+
+      updateUI();
+
+      if (isEpisodeDone) {
+        document.getElementById('stepBtn').disabled = true;
+        showToast('Episode finished!', 'success');
+      } else {
+        setStatus('Ready', false);
+      }
+    }
+
+    async function gradeEpisode() {
+      if (!currentState) {
+        showToast('Please reset first', 'error');
+        return;
+      }
+
+      setStatus('Grading...', true);
+      const result = await apiCall('/grade', 'POST');
+      setStatus('Ready', false);
+
+      if (result) {
+        document.getElementById('scoreValue').textContent = result.score.toFixed(4);
+        showToast(`Score: ${result.score.toFixed(4)}`, 'success');
+      }
+    }
+
+    // ===================================================================
+    // Network Visualization
+    // ===================================================================
+    function drawNetwork() {
+      const canvas = document.getElementById('networkCanvas');
+      const ctx = canvas.getContext('2d');
+
+      // Set canvas size to match container
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+
+      const w = canvas.width;
+      const h = canvas.height;
+
+      // Clear canvas
+      ctx.fillStyle = '#0f1419';
+      ctx.fillRect(0, 0, w, h);
+
+      if (!currentObservation) {
+        ctx.fillStyle = '#e0e0e0';
+        ctx.font = '14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Reset episode to display network', w / 2, h / 2);
+        return;
+      }
+
+      const nodePositions = {
+        'S1': { x: w * 0.2, y: h * 0.25 },
+        'S2': { x: w * 0.2, y: h * 0.75 },
+        'W1': { x: w * 0.5, y: h * 0.5 },
+        'R1': { x: w * 0.8, y: h * 0.25 },
+        'R2': { x: w * 0.8, y: h * 0.75 },
+      };
+
+      const nodes = currentObservation.nodes || {};
+
+      // Draw connections
+      const lanes = [
+        ['S1', 'W1', 'S1->W1'],
+        ['S2', 'W1', 'S2->W1'],
+        ['W1', 'R1', 'W1->R1'],
+        ['W1', 'R2', 'W1->R2'],
+      ];
+
+      lanes.forEach(([from, to, laneId]) => {
+        const p1 = nodePositions[from];
+        const p2 = nodePositions[to];
+        const laneData = currentObservation.lanes || {};
+        const lane = laneData[laneId] || {};
+        const congestion = lane.congestion || 0;
+
+        // Lane color based on congestion
+        const hue = congestion > 0.7 ? 0 : congestion > 0.4 ? 40 : 120;
+        ctx.strokeStyle = `hsl(${hue}, 100%, 50%)`;
+        ctx.lineWidth = 2 + congestion * 4;
+
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.quadraticCurveTo((p1.x + p2.x) / 2, (p1.y + p2.y) / 2 + 30, p2.x, p2.y);
+        ctx.stroke();
+
+        // Arrow
+        const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+        const arrowX = p2.x - 20 * Math.cos(angle);
+        const arrowY = p2.y - 20 * Math.sin(angle);
+        ctx.fillStyle = ctx.strokeStyle;
+        ctx.beginPath();
+        ctx.moveTo(arrowX + 8 * Math.cos(angle), arrowY + 8 * Math.sin(angle));
+        ctx.lineTo(arrowX - 8 * Math.sin(angle), arrowY + 8 * Math.cos(angle));
+        ctx.lineTo(arrowX + 8 * Math.sin(angle), arrowY - 8 * Math.cos(angle));
+        ctx.fill();
+      });
+
+      // Draw nodes
+      Object.entries(nodePositions).forEach(([nodeId, pos]) => {
+        const nodeData = nodes[nodeId] || {};
+        const inventory = nodeData.inventory_level || 0;
+        const isDisrupted = nodeData.disruption_active || false;
+
+        // Node circle
+        const nodeColor = isDisrupted ? '#ff6b6b' : '#0066cc';
+        ctx.fillStyle = nodeColor;
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, 35, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Node border
+        ctx.strokeStyle = '#00d4ff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Inventory bar
+        ctx.fillStyle = '#51cf66';
+        ctx.fillRect(pos.x - 20, pos.y + 40, 40 * inventory, 6);
+        ctx.strokeStyle = '#2a3f5f';
+        ctx.strokeRect(pos.x - 20, pos.y + 40, 40, 6);
+
+        // Node label
+        ctx.fillStyle = '#e0e0e0';
+        ctx.font = 'bold 14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(nodeId, pos.x, pos.y);
+
+        // Inventory percentage
+        ctx.font = '10px sans-serif';
+        ctx.fillStyle = '#a0a0a0';
+        ctx.fillText(`${(inventory * 100).toFixed(0)}%`, pos.x, pos.y + 60);
+      });
+    }
+
+    // ===================================================================
+    // Control Panel
+    // ===================================================================
+    function updateReorderValue(supplier) {
+      const slider = document.getElementById(`${supplier}Slider`);
+      slider.style.setProperty('--value', slider.value * 100 + '%');
+      document.getElementById(`${supplier}Value`).textContent = (slider.value).toFixed(2);
+    }
+
+    function updateSupplierActivation() {
+      // Just update event listener, values read on step
+    }
+
+    function updateRerouting() {
+      ['s1w1', 's2w1', 'w1r1', 'w1r2'].forEach(id => {
+        const slider = document.getElementById(`${id}Slider`);
+        slider.style.setProperty('--value', slider.value * 100 + '%');
+        document.getElementById(`${id}Value`).textContent = (slider.value).toFixed(2);
+      });
+    }
+
+    function buildAction() {
+      return {
+        reorder_quantities: {
+          S1: parseFloat(document.getElementById('s1Slider').value),
+          S2: parseFloat(document.getElementById('s2Slider').value),
+        },
+        rerouting_weights: {
+          'S1->W1': parseFloat(document.getElementById('s1w1Slider').value),
+          'S2->W1': parseFloat(document.getElementById('s2w1Slider').value),
+          'W1->R1': parseFloat(document.getElementById('w1r1Slider').value),
+          'W1->R2': parseFloat(document.getElementById('w1r2Slider').value),
+        },
+        supplier_activation: {
+          S1: document.getElementById('s1Active').checked ? 1.0 : 0.0,
+          S2: document.getElementById('s2Active').checked ? 1.0 : 0.0,
+        },
+      };
+    }
+
+    function applyPreset(preset) {
+      const presets = {
+        fair: {
+          s1: 0.5, s2: 0.5,
+          s1w1: 0.5, s2w1: 0.5, w1r1: 0.5, w1r2: 0.5,
+        },
+        r1: {
+          s1: 0.7, s2: 0.5,
+          s1w1: 0.7, s2w1: 0.3, w1r1: 0.8, w1r2: 0.2,
+        },
+        r2: {
+          s1: 0.5, s2: 0.7,
+          s1w1: 0.3, s2w1: 0.7, w1r1: 0.2, w1r2: 0.8,
+        },
+        emergency: {
+          s1: 1.0, s2: 1.0,
+          s1w1: 0.5, s2w1: 0.5, w1r1: 0.5, w1r2: 0.5,
+        },
+      };
+
+      const values = presets[preset];
+      if (!values) return;
+
+      document.getElementById('s1Slider').value = values.s1;
+      document.getElementById('s2Slider').value = values.s2;
+      document.getElementById('s1w1Slider').value = values.s1w1;
+      document.getElementById('s2w1Slider').value = values.s2w1;
+      document.getElementById('w1r1Slider').value = values.w1r1;
+      document.getElementById('w1r2Slider').value = values.w1r2;
+
+      updateReorderValue('s1');
+      updateReorderValue('s2');
+      updateRerouting();
+    }
+
+    // ===================================================================
+    // UI Updates
+    // ===================================================================
+    function updateUI() {
+      if (!currentObservation || !currentState) return;
+
+      // Update metrics
+      const obs = currentObservation;
+      document.getElementById('serviceLevelValue').textContent = (obs.service_level || 0).toFixed(3);
+      document.getElementById('costValue').textContent = (obs.total_cost || 0).toFixed(3);
+      document.getElementById('resilienceValue').textContent = (obs.network_resilience || 0).toFixed(3);
+      document.getElementById('serviceLevelTarget').textContent = targetServiceLevel.toFixed(2);
+
+      // Update episode info
+      document.getElementById('episodeId').textContent = (obs.episode_id || '-').slice(0, 8);
+      document.getElementById('difficulty').textContent = currentState.difficulty || '-';
+      document.getElementById('progress').textContent = `${currentState.step_count}/${currentState.max_steps}`;
+      document.getElementById('reward').textContent = cumulativeReward.toFixed(2);
+
+      // Add chart data point
+      dashboardCharts.addDataPoint(
+        currentState.step_count,
+        obs.service_level || 0,
+        obs.total_cost || 0,
+        obs.disruption_count || 0,
+        cumulativeReward,
+        targetServiceLevel
+      );
+
+      // Redraw network
+      drawNetwork();
+
+      // Update metric card styles
+      const serviceLevel = obs.service_level || 0;
+      const costValue = obs.total_cost || 0;
+      const cards = document.querySelectorAll('.metric-card');
+      if (serviceLevel < targetServiceLevel * 0.8) {
+        cards[0].classList.add('critical');
+      } else if (serviceLevel < targetServiceLevel) {
+        cards[0].classList.add('warning');
+      } else {
+        cards[0].classList.remove('critical', 'warning');
+      }
+
+      if (costValue > 0.7) {
+        cards[1].classList.add('warning');
+      } else {
+        cards[1].classList.remove('critical', 'warning');
+      }
+    }
+
+    function setStatus(text, loading = false) {
+      document.getElementById('statusText').textContent = text;
+      const dot = document.getElementById('statusDot');
+      if (loading) {
+        dot.style.animation = 'none';
+        dot.style.opacity = '0.5';
+      } else {
+        dot.style.opacity = '1';
+        dot.style.animation = 'pulse 2s infinite';
+      }
+    }
+
+    function showToast(message, type = 'info') {
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    // ===================================================================
+    // Initialization
+    // ===================================================================
+    document.addEventListener('DOMContentLoaded', () => {
+      dashboardCharts.initCharts();
+
+      // Set initial slider styles
+      ['s1', 's2', 's1w1', 's2w1', 'w1r1', 'w1r2'].forEach(id => {
+        const slider = document.getElementById(`${id}Slider`);
+        slider.style.setProperty('--value', slider.value * 100 + '%');
+      });
+
+      // Initial redraw
+      drawNetwork();
+
+      // Redraw network on window resize
+      window.addEventListener('resize', drawNetwork);
+
+      setStatus('Ready', false);
+    });
+  </script>
+</body>
+</html>

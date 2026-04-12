@@ -1,0 +1,69 @@
+﻿version = 1
+revision = 1
+
+[[package]]
+name = "supply-chain-env"
+version = "1.0.0"
+source = { editable = "." }
+dependencies = [
+    { name = "openenv-core" },
+    { name = "fastapi" },
+    { name = "uvicorn" },
+    { name = "websockets" },
+    { name = "pydantic" },
+    { name = "numpy" },
+    { name = "requests" },
+    { name = "aiohttp" },
+    { name = "openai" },
+    { name = "pyyaml" },
+]
+
+[[package]]
+name = "fastapi"
+version = "0.115.0"
+source = { registry = "https://pypi.org/simple" }
+
+[[package]]
+name = "uvicorn"
+version = "0.30.0"
+source = { registry = "https://pypi.org/simple" }
+
+[[package]]
+name = "pydantic"
+version = "2.7.0"
+source = { registry = "https://pypi.org/simple" }
+
+[[package]]
+name = "numpy"
+version = "1.26.4"
+source = { registry = "https://pypi.org/simple" }
+
+[[package]]
+name = "requests"
+version = "2.31.0"
+source = { registry = "https://pypi.org/simple" }
+
+[[package]]
+name = "aiohttp"
+version = "3.9.5"
+source = { registry = "https://pypi.org/simple" }
+
+[[package]]
+name = "openai"
+version = "1.30.0"
+source = { registry = "https://pypi.org/simple" }
+
+[[package]]
+name = "pyyaml"
+version = "6.0.1"
+source = { registry = "https://pypi.org/simple" }
+
+[[package]]
+name = "websockets"
+version = "12.0"
+source = { registry = "https://pypi.org/simple" }
+
+[[package]]
+name = "openenv-core"
+version = "0.2.1"
+source = { registry = "https://pypi.org/simple" }
