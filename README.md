@@ -18,7 +18,7 @@ tags:
 [![Python](https://img.shields.io/badge/python-3.10%2B-brightgreen)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110%2B-009688)](https://fastapi.tiangolo.com)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Demo](https://img.shields.io/badge/demo-local--ui-orange)](http://localhost:8000/demo)
+[![Demo](https://img.shields.io/badge/demo-local--ui-orange)](http://localhost:7860/demo)
 [![HuggingFace](https://img.shields.io/badge/🤗%20HF%20Space-openenv-yellow)](https://huggingface.co/spaces/openenv)
 
 ---
@@ -49,10 +49,10 @@ Start the server and run the demo UI + inference report using the included scrip
 Or on Windows (PowerShell):
 
 ```powershell
-.\run_supply_chain_env.ps1 -PORT 8000
+.\run_supply_chain_env.ps1 -PORT 7860
 ```
 
-After the run open `http://localhost:8000/demo` to interact and view the generated report.
+After the run open `http://localhost:7860/demo` to interact and view the generated report.
 
 ---
 
@@ -203,10 +203,10 @@ cd supply-chain-env
 pip install fastapi uvicorn pydantic openai requests numpy pyyaml
 
 # 3. Start the server
-uvicorn server.app:app --host 0.0.0.0 --port 8000
+uvicorn server.app:app --host 0.0.0.0 --port 7860
 
 # 4. Open docs
-open http://localhost:8000/docs
+open http://localhost:7860/docs
 ```
 
 ### Docker (recommended)
@@ -216,10 +216,10 @@ open http://localhost:8000/docs
 docker build -t supply-chain-env .
 
 # Run
-docker run -p 8000:8000 supply-chain-env
+docker run -p 7860:7860 supply-chain-env
 
 # Verify
-curl http://localhost:8000/
+curl http://localhost:7860/
 ```
 
 ### Run inference (LLM agent)
@@ -231,7 +231,7 @@ export MODEL_NAME=meta-llama/Llama-3.3-70B-Instruct
 export HF_TOKEN=hf_your_token_here
 
 # Option A — connect to already-running server
-export ENV_BASE_URL=http://localhost:8000
+export ENV_BASE_URL=http://localhost:7860
 python inference.py
 
 # Option B — spin up from local Docker image
@@ -330,7 +330,7 @@ git remote add hf https://huggingface.co/spaces/<your-username>/supply-chain-env
 git push hf main
 ```
 
-The Space will auto-deploy and expose port 8000. Set these Space secrets:
+The Space will auto-deploy and expose port 7860. Set these Space secrets:
 - `API_BASE_URL`
 - `MODEL_NAME`
 - `HF_TOKEN`
